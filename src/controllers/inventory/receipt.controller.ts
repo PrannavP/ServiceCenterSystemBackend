@@ -190,7 +190,7 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // update master table
+        // Update master table
         const updateMasterQuery = `
             UPDATE inv.tbl_receipt
             SET
@@ -219,42 +219,67 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        const receiptUid = masterResult.rows[0].uid;
+        const receipt = masterResult.rows[0];
 
-        // update detail table
-        const updateDetailQuery = `
-            UPDATE inv.tbl_receipt_detail d
+        // Soft delete existing detail rows
+        await db.query(
+            `
+            UPDATE inv.tbl_receipt_detail
             SET
-                part_id = x.part_id,
-                quantity = x.quantity,
-                rate = x.rate,
-                total = x.total,
+                is_active = FALSE,
+                is_deleted = TRUE,
                 updated_at = NOW(),
                 updated_by = 1
-            FROM jsonb_to_recordset($1::jsonb) AS x(
+            WHERE receipt_id = $1
+              AND is_active = TRUE;
+            `,
+            [receipt.id]
+        );
+
+        // Insert new detail rows
+        const insertDetailQuery = `
+            INSERT INTO inv.tbl_receipt_detail (
+                receipt_id,
+                receipt_uid,
+                part_id,
+                quantity,
+                rate,
+                total
+            )
+            SELECT
+                $1,
+                $2,
+                d.part_id,
+                d.quantity,
+                d.rate,
+                d.total
+            FROM jsonb_to_recordset($3::jsonb) AS d(
                 part_id INT,
                 quantity NUMERIC,
                 rate NUMERIC,
                 total NUMERIC
             )
-            WHERE d.receipt_id = $2
+            RETURNING *;
         `;
 
-        const detailResult = await db.query(updateDetailQuery, [
-            JSON.stringify(dto.detail),
-            Number(receiptId)
+        const detailResult = await db.query(insertDetailQuery, [
+            receipt.id,
+            receipt.uid,
+            JSON.stringify(dto.detail)
         ]);
 
         res.status(200).json({
             success: true,
             data: {
-                master: masterResult.rows[0],
+                master: receipt,
                 details: detailResult.rows
             },
             error_code: "0"
         });
 
     } catch (err) {
+        console.error(err);
+
         res.status(400).json({
             success: false,
             message: "Could not update receipt.",
