@@ -12,16 +12,18 @@ export async function validateUser(
         errors.push("Username must be between 2 and 50 characters.");
     }
 
-    if (!dto.email || dto.username.trim().length < 2 || dto.username.trim().length > 50) {
-        errors.push("Email must be between 2 and 50 characters.");
-    }
-
     if (!dto.phone || dto.phone.trim().length !== 10) {
         errors.push("Phone number must be 10 digits.");
     }
 
     if (!dto.email || dto.email.trim().length < 2 || dto.email.trim().length > 50) {
         errors.push("Email must be between 2 and 50 characters.");
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!dto.email || !emailRegex.test(dto.email.trim())) {
+        errors.push("Invalid email address.");
     }
 
     if (!dto.full_name || dto.full_name.trim().length < 2 || dto.full_name.trim().length > 100) {
@@ -49,8 +51,8 @@ export async function validateUser(
         `;
 
     const duplicateUsernameParams = isForUpdate
-        ? [dto.full_name.trim(), dto.id]
-        : [dto.full_name.trim()];
+        ? [dto.username.trim(), dto.id]
+        : [dto.username.trim()];
 
     const duplicateUsernameResult = await db.query(
         duplicateUsernameQuery,
@@ -72,17 +74,18 @@ export async function validateUser(
             WHERE email = $1
               AND is_active
               AND id <> $2
+              AND is_deleted = false
         `
         : `
             SELECT COUNT(*) AS count
             FROM app.tbl_user
-            WHERE email = email
-              AND is_active
+            WHERE email = $1
+              AND is_deleted = false
         `;
 
     const duplicateEmailParams = isForUpdate
-        ? [dto.full_name.trim(), dto.id]
-        : [dto.full_name.trim()];
+        ? [dto.email.trim(), dto.id]
+        : [dto.email.trim()];
 
     const duplicateEmailResult = await db.query(
         duplicateEmailQuery,
@@ -100,7 +103,7 @@ export async function validateUser(
     if (errors.length > 0) {
         return {
             isValid: false,
-            statusCode: 409,
+            statusCode: 400,
             errors
         };
     }
