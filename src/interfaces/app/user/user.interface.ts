@@ -8,3 +8,11 @@ export interface CreateUpdateUserDTO{
     is_active: boolean,
     avatar_url?: string
 };
+
+export interface RegisterDTO {
+    id?: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    password: string;
+}
