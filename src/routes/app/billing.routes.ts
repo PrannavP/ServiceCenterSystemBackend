@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createBill, getBill, updateBill } from "../../controllers/app/billing.controller.js";
+import { createBill, getBill, printBill, updateBill } from "../../controllers/app/billing.controller.js";
 import authenticationMiddleware from "../../middlewares/authMiddleware.js";
 
 const router = Router();
@@ -337,5 +337,67 @@ router.get("/get/:id", getBill);
  *         description: Could not update bill
  */
 router.post("/update", updateBill);
+
+/**
+ * @swagger
+ * /api/billing/printbill/{id}:
+ *   get:
+ *     security:
+ *       - bearerAuth: []
+ *
+ *     tags:
+ *       - APP - Billing
+ *
+ *     summary: Generate printable bill
+ *     description: >
+ *       Generates a printable invoice in HTML format for the specified bill ID.
+ *       The response is an HTML document that can be rendered directly in a browser
+ *       or printed.
+ *
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Bill ID
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *
+ *     responses:
+ *       200:
+ *         description: Printable bill generated successfully.
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ *             example: |
+ *               <!DOCTYPE html>
+ *               <html>
+ *                 <head>
+ *                   <title>Invoice</title>
+ *                 </head>
+ *                 <body>
+ *                   <h1>ABC Automobile Workshop</h1>
+ *                   <p>Bill No: BILL-0001</p>
+ *                 </body>
+ *               </html>
+ *
+ *       404:
+ *         description: Bill not found.
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: Bill not found
+ *
+ *       500:
+ *         description: Failed to generate the printable bill.
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: Could not generate bill.
+ */
+router.get("/printbill/:id", printBill);
 
 export { router as billingRoutes };
