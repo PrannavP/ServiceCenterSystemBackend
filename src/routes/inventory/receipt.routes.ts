@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
     createReceipt,
     getReceiptById,
+    loadddl,
+    receiptList,
     updateReceipt
 } from "../../controllers/inventory/receipt.controller.js";
 
@@ -151,5 +153,10 @@ router.get("/get/:receipt_id", getReceiptById);
  *
  */
 router.post("/update/:receipt_id",updateReceipt);
+
+// get api for receipt list
+router.get("/list", receiptList);
+
+router.get("/loadddl", authenticationMiddleware, loadddl);
 
 export { router as receiptRoute };

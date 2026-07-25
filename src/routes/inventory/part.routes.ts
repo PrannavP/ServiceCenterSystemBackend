@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     createPart,
     getPartById,
+    listPart,
     updatePart
 } from "../../controllers/inventory/part.controller.js";
 import authenticationMiddleware from "../../middlewares/authMiddleware.js";
@@ -119,5 +120,8 @@ router.get("/get/:id", getPartById);
  *
  */
 router.post("/update/:id",updatePart);
+
+// list page get api
+router.get("/list", listPart);
 
 export { router as partRoutes };
