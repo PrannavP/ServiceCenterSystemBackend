@@ -10,6 +10,7 @@ import { jobcardRoutes } from './src/routes/app/jobcard.routes.js';
 import { receiptRoute } from './src/routes/inventory/receipt.routes.js';
 import { userRoutes } from './src/routes/app/user.routes.js';
 import { billingRoutes } from './src/routes/app/billing.routes.js';
+import { menuRoutes } from './src/routes/app/menu.routes.js';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use("/api/jobcard", jobcardRoutes);
 app.use("/api/receipt", receiptRoute);
 app.use("/api/user", userRoutes);
 app.use("/api/billing", billingRoutes);
+app.use("/api/menu", menuRoutes);
 
 // Base health check route
 app.get('/', (req: Request, res: Response) => {

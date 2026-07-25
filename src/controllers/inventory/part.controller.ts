@@ -6,6 +6,8 @@ import { CreateUpdatePartDTO } from '../../interfaces/inventory/parts/part.inter
 
 // Create
 export const createPart = async (req: Request, res: Response): Promise<void> => {
+    const created_by = (req as any).user?.id;
+    
     try{
         const { name, part_number, is_active } = req.body;
 
@@ -32,16 +34,16 @@ export const createPart = async (req: Request, res: Response): Promise<void> => 
 
         const queryText = `
             with cte_insert as(
-                INSERT INTO inv.tbl_part (name, part_number, is_active)
+                INSERT INTO inv.tbl_part (name, part_number, is_active, created_by, created_at)
                 VALUES
-                ($1, $2, $3)
+                ($1, $2, $3, $4, NOW())
                 RETURNING *
             )
             INSERT INTO inv.tbl_part_log
             SELECT * FROM cte_insert;
         `;
 
-        const result = await db.query<PartRow>(queryText, [name, part_number, is_active]);
+        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, created_by]);
 
         res.status(201).json({ success: true, data: result.rows[0], error_code: "0" });
     }catch(err){
@@ -70,6 +72,8 @@ export const getPartById = async (req: Request, res: Response): Promise<void> =>
 
 // UPDATE: Modify user columns dynamically
 export const updatePart = async (req: Request, res: Response): Promise<void> => {
+    const updated_by = (req as any).user?.id;
+
     try{
         const { id } = req.params;
         
@@ -96,9 +100,9 @@ export const updatePart = async (req: Request, res: Response): Promise<void> => 
             return;
         }
         
-        const queryText = 'UPDATE inv.tbl_part SET uid = fn_new_uuid(), name = $1, part_number = $2, is_active = $3, updated_by = 0, updated_date = NOW() WHERE id = $4 RETURNING *';
+        const queryText = 'UPDATE inv.tbl_part SET uid = fn_new_uuid(), name = $1, part_number = $2, is_active = $3, updated_by = $5, updated_date = NOW() WHERE id = $4 RETURNING *';
     
-        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, Number(id)]);
+        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, Number(id), updated_by]);
     
         if (result.rows.length === 0){
             res.status(404).json({ success: false, message: 'User not found to update', error_code: "1" });

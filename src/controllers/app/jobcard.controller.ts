@@ -4,6 +4,8 @@ import { validateJobCard } from '../../validations/app/JobCardValidationHelper/V
 import { CreateUpdateJobCardDTO } from '../../interfaces/app/job/jobcard.interface.js';
 
 export const createJobCard = async (req: Request, res: Response): Promise<void> => {
+    const created_by = (req as any).user?.id;
+
     try {
         const {
             customer_name,
@@ -63,10 +65,11 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
                     fuel_quantity,
                     chasis_number,
                     problems,
-                    remarks
+                    remarks,
+                    created_by
                 )
                 VALUES (
-                    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
+                    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
                 )
                 RETURNING *
             ),
@@ -88,7 +91,8 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
             fuel_quantity,
             chasis_number,
             JSON.stringify(problems),
-            remarks
+            remarks,
+            created_by
         ]);
 
         const jobCard = masterResult.rows[0];
@@ -104,7 +108,8 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
                         part_id,
                         quantity,
                         rate,
-                        total
+                        total,
+                        created_by
                     )
                     SELECT
                         $1,
@@ -112,7 +117,8 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
                         d.part_id,
                         d.quantity,
                         d.rate,
-                        d.total
+                        d.total,
+                        $4
                     FROM json_to_recordset($3::json) AS d(
                         part_id INT,
                         quantity INT,
@@ -126,7 +132,7 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
                 SELECT * FROM cte_insert;
             `;
 
-            await db.query(detailQuery, [ jobCard.id, jobCard.uid, JSON.stringify(detail)]);
+            await db.query(detailQuery, [ jobCard.id, jobCard.uid, JSON.stringify(detail), created_by]);
         }
 
         res.status(201).json({success: true, data: jobCard, error_code: "0"});
@@ -143,6 +149,8 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
 };
 
 export const updateJobCard = async (req: Request, res: Response): Promise<void> => {
+    const updated_by = (req as any).user?.id;
+
     try {
         const { id } = req.params;
 
@@ -207,7 +215,7 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
                     problems = $11,
                     remarks = $12,
                     updated_at = NOW(),
-                    updated_by = 1
+                    updated_by = $13
                 WHERE id = $1
                 RETURNING *
             ),
@@ -230,7 +238,8 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             fuel_quantity,
             chasis_number,
             JSON.stringify(problems),
-            remarks
+            remarks,
+            updated_by
         ]);
 
         if (masterResult.rowCount === 0) {
@@ -269,7 +278,8 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
                         part_id,
                         quantity,
                         rate,
-                        total
+                        total,
+                        created_by
                     )
                     SELECT
                         $1,
@@ -277,7 +287,8 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
                         d.part_id,
                         d.quantity,
                         d.rate,
-                        d.total
+                        d.total,
+                        $4
                     FROM json_to_recordset($3::json) AS d(
                         part_id INT,
                         quantity INT,
@@ -296,7 +307,8 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             await db.query(detailQuery, [
                 jobCard.id,
                 jobCard.uid,
-                JSON.stringify(detail)
+                JSON.stringify(detail),
+                updated_by
             ]);
         }
 
