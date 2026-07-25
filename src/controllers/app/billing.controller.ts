@@ -5,6 +5,8 @@ import { ValidateBill } from "../../validations/app/BillingValidationHelper/Vali
 
 
 export const createBill = async (req: Request, res: Response): Promise<void> => {
+    const created_by = (req as any).user?.id;
+    
     try {
 
         const { jobcard_id, payment_method } = req.body;
@@ -89,7 +91,7 @@ export const createBill = async (req: Request, res: Response): Promise<void> => 
                 )
                 VALUES
                 
-                ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
                 RETURNING *
             )
 
@@ -106,7 +108,8 @@ export const createBill = async (req: Request, res: Response): Promise<void> => 
                 jobCard.static_vehicle_type_id,
                 jobCard.static_vehicle_id,
                 jobCard.vehicle_registration_number,
-                payment_method
+                payment_method,
+                created_by
             ]
         );
 
@@ -152,8 +155,8 @@ export const createBill = async (req: Request, res: Response): Promise<void> => 
                     total,
                     tax_percentage,
                     tax_amount,
-                    0,
-                    0
+                    $4,
+                    $4
 
                 FROM jsonb_to_recordset($3::jsonb)
 
@@ -179,7 +182,8 @@ export const createBill = async (req: Request, res: Response): Promise<void> => 
             [
                 bill.id,
                 bill.uid,
-                billDetailsJson
+                billDetailsJson,
+                created_by
             ]
         );
 
@@ -287,6 +291,8 @@ export const getBill = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const updateBill = async (req: Request, res: Response): Promise<void> => {
+    const updated_by = (req as any).user?.id;
+    
     try {
         const {
             id,
@@ -340,7 +346,7 @@ export const updateBill = async (req: Request, res: Response): Promise<void> => 
                     static_vehicle_id = $5,
                     vehicle_number = $6,
                     payment_method = $7,
-                    updated_by = 0,
+                    updated_by = $8,
                     updated_at = NOW()
                 WHERE id = $1
 
@@ -359,7 +365,8 @@ export const updateBill = async (req: Request, res: Response): Promise<void> => 
                 static_vehicle_type_id,
                 static_vehicle_id,
                 vehicle_number,
-                payment_method
+                payment_method,
+                updated_by
             ]
         );
 
@@ -421,8 +428,8 @@ export const updateBill = async (req: Request, res: Response): Promise<void> => 
                     total,
                     tax_percentage,
                     tax_amount,
-                    0,
-                    0
+                    $4,
+                    $4
 
                 FROM jsonb_to_recordset($3::jsonb)
 
@@ -448,7 +455,8 @@ export const updateBill = async (req: Request, res: Response): Promise<void> => 
             [
                 id,
                 bill.uid,
-                detailJson
+                detailJson,
+                updated_by
             ]
         );
 

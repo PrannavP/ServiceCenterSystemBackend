@@ -5,6 +5,8 @@ import { CreateUpdateReceiptDTO } from '../../interfaces/inventory/receipt/recei
 
 // create
 export const createReceipt = async (req: Request, res: Response): Promise<void> => {
+    const created_by = (req as any).user?.id;
+    
     try{
         const { remarks, number, is_active, detail } = req.body
 
@@ -45,8 +47,8 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
                     $2,
                     $3,
                     true,
-                    1,
-                    1
+                    $4,
+                    $4
                 )
                 RETURNING *
             ),
@@ -61,7 +63,7 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
 
         // execute queries and store
         const masterResult = await db.query(insertMasterTableQuery, [
-            current_datetime, dto.remarks?.trim(), dto.number?.trim()
+            current_datetime, dto.remarks?.trim(), dto.number?.trim(), created_by
         ]);
 
         const recepit = masterResult.rows[0];
@@ -88,8 +90,8 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
                     d.quantity,
                     d.rate,
                     d.total,
-                    1,
-                    1
+                    $4,
+                    $4
                 FROM jsonb_to_recordset($3::jsonb) AS d(
                     part_id INT,
                     quantity NUMERIC,
@@ -110,7 +112,8 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
         const detailResult = await db.query(insertDetailQuery, [
             receiptId,
             receiptUid,
-            JSON.stringify(dto.detail)
+            JSON.stringify(dto.detail),
+            created_by
         ]);
 
         const result = {
@@ -167,6 +170,8 @@ export const getReceiptById = async (req: Request, res: Response): Promise<void>
 };
 
 export const updateReceipt = async (req: Request, res: Response): Promise<void> => {
+    const updated_by = (req as any).user?.id;
+    
     try {
         const receiptId = req.query.receipt_id;
 
@@ -198,7 +203,7 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
                 number = $2,
                 is_active = $3,
                 updated_at = NOW(),
-                updated_by = 1
+                updated_by = $5
             WHERE id = $4
             RETURNING *;
         `;
@@ -207,7 +212,8 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
             dto.remarks?.trim(),
             dto.number?.trim(),
             dto.is_active,
-            Number(receiptId)
+            Number(receiptId),
+            updated_by
         ]);
 
         if (masterResult.rows.length === 0) {
@@ -244,7 +250,11 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
                 part_id,
                 quantity,
                 rate,
-                total
+                total,
+                created_by
+                created_at,
+                updated_by,
+                updated_at
             )
             SELECT
                 $1,
@@ -252,7 +262,11 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
                 d.part_id,
                 d.quantity,
                 d.rate,
-                d.total
+                d.total,
+                $4
+                NOW(),
+                $4,
+                NOW()
             FROM jsonb_to_recordset($3::jsonb) AS d(
                 part_id INT,
                 quantity NUMERIC,
@@ -265,7 +279,8 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
         const detailResult = await db.query(insertDetailQuery, [
             receipt.id,
             receipt.uid,
-            JSON.stringify(dto.detail)
+            JSON.stringify(dto.detail),
+            updated_by
         ]);
 
         res.status(200).json({
