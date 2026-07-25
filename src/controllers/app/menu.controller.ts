@@ -28,7 +28,7 @@ const menus = [
         id: 4,
         name: "Receipt",
         path: "/inv/receipt",
-        icon: "customers",
+        icon: "receipt",
         allowedRoles: ["admin"]
     },
     {

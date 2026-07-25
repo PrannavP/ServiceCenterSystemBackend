@@ -45,7 +45,7 @@ export const createPart = async (req: Request, res: Response): Promise<void> => 
 
         const result = await db.query<PartRow>(queryText, [name, part_number, is_active, created_by]);
 
-        res.status(201).json({ success: true, data: result.rows[0], error_code: "0" });
+        res.status(201).json({ success: true, data: result.rows[0], error_code: "0", message: "Part created successfully" });
     }catch(err){
         res.status(400).json({ success: false, message: "Could not create part.", error_code: "1" });
     }
@@ -66,6 +66,7 @@ export const getPartById = async (req: Request, res: Response): Promise<void> =>
         
         res.status(200).json({ success: true, data: result.rows[0], error_code: "0" });
     }catch (error){
+        console.error(error);
         res.status(500).json({ success: false, message: 'Server Database Error', error_code: "1" });
   }
 };
@@ -100,7 +101,7 @@ export const updatePart = async (req: Request, res: Response): Promise<void> => 
             return;
         }
         
-        const queryText = 'UPDATE inv.tbl_part SET uid = fn_new_uuid(), name = $1, part_number = $2, is_active = $3, updated_by = $5, updated_date = NOW() WHERE id = $4 RETURNING *';
+        const queryText = 'UPDATE inv.tbl_part SET uid = uuid_generate_v4(), name = $1, part_number = $2, is_active = $3, updated_by = $5, updated_at = NOW() WHERE id = $4 RETURNING *';
     
         const result = await db.query<PartRow>(queryText, [name, part_number, is_active, Number(id), updated_by]);
     
@@ -110,17 +111,48 @@ export const updatePart = async (req: Request, res: Response): Promise<void> => 
             return;
         }
         
-        res.status(200).json({ success: true, data: result.rows[0], error_code: "0" });
+        res.status(200).json({ success: true, data: result.rows[0], error_code: "0", message: "Part updated successfully" });
     }catch (error){
+        console.error(error);
         res.status(400).json({ success: false, message: 'Update script failed', error_code: "1" });
     }
 };
 
 // List page
 export const listPart = async (req: Request, res: Response): Promise<void> => {
-    try{
+    try {
+        const query = `
+            SELECT
+                id,
+                name,
+                part_number,
+                is_active,
+                created_by,
+                created_at,
+                updated_by,
+                updated_at
+            FROM inv.tbl_part
+            WHERE is_deleted = FALSE
+            ORDER BY created_at DESC;
+        `;
 
-    }catch(error){
+        const result = await db.query(query);
 
+        res.status(200).json({
+            success: true,
+            data: {
+                items: result.rows,
+                total: result.rowCount
+            },
+            error_code: "0"
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            success: false,
+            message: "Error while fetching data.",
+            error_code: "1"
+        });
     }
 };

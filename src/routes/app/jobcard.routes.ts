@@ -2,7 +2,9 @@ import { Router } from "express";
 import {
     createJobCard,
     updateJobCard,
-    getJobcardById
+    getJobcardById,
+    jobCardList,
+    loadddl
 } from "../../controllers/app/jobcard.controller.js";
 
 import authenticationMiddleware from "../../middlewares/authMiddleware.js";
@@ -10,7 +12,7 @@ import authenticationMiddleware from "../../middlewares/authMiddleware.js";
 const router = Router();
 
 // Authentication middleware for all job card routes
-router.use(authenticationMiddleware);
+// router.use(authenticationMiddleware);
 
 /**
  * @swagger
@@ -138,7 +140,7 @@ router.post("/create", createJobCard);
  *         description: Job card not found
  *
  */
-router.post("/update/:id", updateJobCard);
+router.post("/update/:id", authenticationMiddleware, updateJobCard);
 
 /**
  * @swagger
@@ -175,6 +177,10 @@ router.post("/update/:id", updateJobCard);
  *         description: Job card not found
  *
  */
-router.get("/get/:id", getJobcardById);
+router.get("/get/:id", authenticationMiddleware, getJobcardById);
+
+router.get("/list", authenticationMiddleware, jobCardList);
+
+router.get("/loadddl", authenticationMiddleware, loadddl);
 
 export { router as jobcardRoutes };

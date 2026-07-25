@@ -8,13 +8,13 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
     const created_by = (req as any).user?.id;
     
     try{
-        const { remarks, number, is_active, detail } = req.body
+        const { remarks, number, is_active, details } = req.body
 
         const dto: CreateUpdateReceiptDTO = {
             remarks: remarks,
             number: number,
             is_active: is_active,
-            detail: detail
+            detail: details
         };
 
         const validation = await validateReceipt(db, dto, false);
@@ -121,7 +121,7 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
             details: detailResult.rows
         };
 
-        res.status(201).json({ success: true, data: result, error_code: "0" });
+        res.status(201).json({ message: "Receipt created successfully", success: true, data: result, error_code: "0" });
     }catch(err){
         console.log(err);
         res.status(400).json({ success: false, message: "Could not create receipt.", error_code: "1" });
@@ -173,7 +173,7 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
     const updated_by = (req as any).user?.id;
     
     try {
-        const receiptId = req.query.receipt_id;
+        const receiptId = req.params.receipt_id;
 
         const { remarks, number, is_active, detail } = req.body;
 
@@ -235,11 +235,11 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
                 is_active = FALSE,
                 is_deleted = TRUE,
                 updated_at = NOW(),
-                updated_by = 1
+                updated_by = $2
             WHERE receipt_id = $1
               AND is_active = TRUE;
             `,
-            [receipt.id]
+            [receipt.id, updated_by]
         );
 
         // Insert new detail rows
@@ -251,7 +251,7 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
                 quantity,
                 rate,
                 total,
-                created_by
+                created_by,
                 created_at,
                 updated_by,
                 updated_at
@@ -263,7 +263,7 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
                 d.quantity,
                 d.rate,
                 d.total,
-                $4
+                $4,
                 NOW(),
                 $4,
                 NOW()
@@ -284,6 +284,7 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
         ]);
 
         res.status(200).json({
+            message: "Receipt updated successfully",
             success: true,
             data: {
                 master: receipt,
@@ -304,3 +305,54 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
 };
 
 // list page
+export const receiptList = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query = `
+            SELECT
+                id,
+                transaction_date,
+                number as receipt_number,
+                is_active,
+                created_by,
+                created_at,
+                updated_by,
+                updated_at
+            FROM inv.tbl_receipt
+            WHERE is_deleted = FALSE
+            ORDER BY created_at DESC;
+        `;
+
+        const result = await db.query(query);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                items: result.rows,
+                total: result.rowCount
+            },
+            error_code: "0"
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            success: false,
+            message: "Error while fetching data.",
+            error_code: "1"
+        });
+    }
+};
+
+// loadddl
+export const loadddl = async (req: Request, res: Response): Promise<void> => {
+    try{
+        const queryText = 'SELECT id as id, name as label, part_number FROM inv.tbl_part where is_active';
+    
+        const result = await db.query(queryText);
+        
+        res.status(200).json({ success: true, data: result.rows || [], error_code: "0" });
+    }catch (error){
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Error fetching LoadDDL data.', error_code: "1" });
+  }
+};

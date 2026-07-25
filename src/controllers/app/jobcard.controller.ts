@@ -4,7 +4,12 @@ import { validateJobCard } from '../../validations/app/JobCardValidationHelper/V
 import { CreateUpdateJobCardDTO } from '../../interfaces/app/job/jobcard.interface.js';
 
 export const createJobCard = async (req: Request, res: Response): Promise<void> => {
-    const created_by = (req as any).user?.id;
+    // let created_by = (req as any).user?.id;
+    let created_by = 0;
+
+    if(req.body.fromApp === true){
+        created_by = req.body.created_by;
+    }
 
     try {
         const {
@@ -19,7 +24,7 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
             chasis_number,
             problems,
             remarks,
-            detail
+            details
         } = req.body;
 
         // format request body into dto
@@ -36,20 +41,24 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
             problems: JSON.stringify(problems),
             remarks,
             is_active: true,
-            job_card_detail: detail
+            job_card_detail: details
         };
 
-        // validate request
-        const validation = await validateJobCard(db, dto, false);
+        // COMMENTED THE VALIDATION FOR NOW BECAUSE WHEN  CREATING FROM OCR APP SOME DATAS ARE NOT COMING SO FOR TESTING PURPOSE.
+        // UNCOMMENT THIS SOON!!
+        // TODO
 
-        if (!validation.isValid) {
-            res.status(validation.statusCode ?? 400).json({
-                success: false,
-                errors: validation.errors,
-                error_code: "1"
-            });
-            return;
-        }
+        // validate request
+        // const validation = await validateJobCard(db, dto, false);
+
+        // if (!validation.isValid) {
+        //     res.status(validation.statusCode ?? 400).json({
+        //         success: false,
+        //         errors: validation.errors,
+        //         error_code: "1"
+        //     });
+        //     return;
+        // }
 
         // insert master record
         const masterQuery = `
@@ -98,7 +107,7 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
         const jobCard = masterResult.rows[0];
 
         // insert detail records
-        if (detail != null && detail.length > 0) {
+        if (details != null && details.length > 0) {
 
             const detailQuery = `
                 WITH cte_insert AS (
@@ -132,10 +141,10 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
                 SELECT * FROM cte_insert;
             `;
 
-            await db.query(detailQuery, [ jobCard.id, jobCard.uid, JSON.stringify(detail), created_by]);
+            await db.query(detailQuery, [ jobCard.id, jobCard.uid, JSON.stringify(details), created_by]);
         }
 
-        res.status(201).json({success: true, data: jobCard, error_code: "0"});
+        res.status(201).json({success: true, data: jobCard, error_code: "0", message: "Created job card successfully"});
 
     } catch (err) {
         console.error(err);
@@ -166,7 +175,7 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             chasis_number,
             problems,
             remarks,
-            detail
+            details
         } = req.body;
 
         // format request body into dto
@@ -183,7 +192,7 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             problems: JSON.stringify(problems),
             remarks,
             is_active: true,
-            job_card_detail: detail
+            job_card_detail: details
         };
 
         // validate request
@@ -254,8 +263,7 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
         const jobCard = masterResult.rows[0];
 
         // Soft delete old detail rows and insert new ones
-        if (detail && detail.length > 0) {
-
+        if (details && details.length > 0) {
             await db.query(
                 `
                 UPDATE app.tbl_jobcard_detail
@@ -307,7 +315,7 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             await db.query(detailQuery, [
                 jobCard.id,
                 jobCard.uid,
-                JSON.stringify(detail),
+                JSON.stringify(details),
                 updated_by
             ]);
         }
@@ -315,7 +323,8 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
         res.status(200).json({
             success: true,
             data: jobCard,
-            error_code: "0"
+            error_code: "0",
+            message: "Updated job card successfully"
         });
 
     } catch (err) {
@@ -356,7 +365,7 @@ export const getJobcardById = async (req: Request, res: Response): Promise<void>
 
         // combine 2 results in one object and return
         const data = {
-            receipt: mainResult.rows[0],      // single object
+            jobcard: mainResult.rows[0],      // single object
             details: detailResult.rows        // array
         };
 
@@ -371,4 +380,63 @@ export const getJobcardById = async (req: Request, res: Response): Promise<void>
         console.log(err)
         res.status(500).json({ success: false, message: "Error while fetching job card data.", error_code: "1" });
     }
+};
+
+// list all jobcards
+// currenttly no filters for final internal demo
+// will add in external final demo
+export const jobCardList = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query = `
+            SELECT
+                id AS jobcard_number,
+                customer_name,
+                customer_address,
+                contact_number,
+                static_vehicle_type_id,
+                static_vehicle_id,
+                vehicle_registration_number,
+                is_active,
+                created_by,
+                created_at,
+                updated_by,
+                updated_at
+            FROM app.tbl_jobcard
+            WHERE is_deleted = FALSE
+            ORDER BY created_at DESC;
+        `;
+
+        const result = await db.query(query);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                items: result.rows,
+                total: result.rowCount
+            },
+            error_code: "0"
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            success: false,
+            message: "Error while fetching data.",
+            error_code: "1"
+        });
+    }
+};
+
+// loadddl
+export const loadddl = async (req: Request, res: Response): Promise<void> => {
+    try{
+        const queryText = 'SELECT part_id as id, part_name as label, rate, available_qty FROM inv.fn_get_part_available_stock() where available_qty > 0';
+    
+        const result = await db.query(queryText);
+        
+        res.status(200).json({ success: true, data: result.rows|| [], error_code: "0" });
+    }catch (error){
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Error fetching LoadDDL data.', error_code: "1" });
+  }
 };

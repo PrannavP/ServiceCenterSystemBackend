@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createBill, getBill, updateBill } from "../../controllers/app/billing.controller.js";
+import { billList, createBill, getBill, getBillForPrinting, updateBill } from "../../controllers/app/billing.controller.js";
 import authenticationMiddleware from "../../middlewares/authMiddleware.js";
 
 const router = Router();
@@ -337,5 +337,11 @@ router.get("/get/:id", getBill);
  *         description: Could not update bill
  */
 router.post("/update", updateBill);
+
+// route for list of bills get api endpoint
+router.get("/list", billList);
+
+// route for getting bill for printing accepts bill id in params
+router.get("/printbill/:bill_id", getBillForPrinting);
 
 export { router as billingRoutes };
