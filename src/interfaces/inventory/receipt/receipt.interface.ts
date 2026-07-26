@@ -1,11 +1,9 @@
 export interface CreateUpdateReceiptDTO {
-    // master table
     id?: number;
     remarks?: string;
     number?:string;
     is_active: boolean;
 
-    // detail table
     detail: Array<ReceiptDetail>; // we can use another interface here
 };
 

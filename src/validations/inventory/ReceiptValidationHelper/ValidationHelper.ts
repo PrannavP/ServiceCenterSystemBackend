@@ -9,17 +9,14 @@ export async function validateReceipt(
 
     const errors: string[] = [];
 
-    // validate the remarks field
     if (!dto.remarks?.trim() || dto.remarks.trim().length > 100) {
         errors.push("Remarks must have at most 100 characters.");
     }
 
-    // validate the number field
     if (!dto.number?.trim() || dto.number.trim().length > 50) {
         errors.push("Number must have at most 50 characters.");
     }
 
-    // number should be unique
     const duplicateReceiptNumberQuery = isForUpdate
         ? `
             SELECT COUNT(*) AS count
@@ -52,7 +49,6 @@ export async function validateReceipt(
         errors.push("An active receipt already exists with this receipt number.");
     }
 
-    // valid part ids
     var validPartsResult = await db.query(
         `select id from inv.tbl_part where is_active`
     );
@@ -61,14 +57,11 @@ export async function validateReceipt(
         validPartsResult.rows.map((row: any) => row.id)
     );
 
-    // validate the receipt item detail
     dto.detail.forEach(element => {
-        // validate part id
         if(!validPartIds.has(element.part_id)){
             errors.push(`Invalid part_id: ${element.part_id}`);
         }
 
-        // validate quantity, cannot be less than 1
         if(element.quantity < 1){
             errors.push("Quanity should be at least 1");
         }

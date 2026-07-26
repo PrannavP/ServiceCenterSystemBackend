@@ -4,7 +4,6 @@ import { validateJobCard } from '../../validations/app/JobCardValidationHelper/V
 import { CreateUpdateJobCardDTO } from '../../interfaces/app/job/jobcard.interface.js';
 
 export const createJobCard = async (req: Request, res: Response): Promise<void> => {
-    // let created_by = (req as any).user?.id;
     let created_by = 0;
 
     if(req.body.fromApp === true){
@@ -27,7 +26,6 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
             details
         } = req.body;
 
-        // format request body into dto
         const dto: CreateUpdateJobCardDTO = {
             customer_name,
             customer_address,
@@ -44,23 +42,6 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
             job_card_detail: details
         };
 
-        // COMMENTED THE VALIDATION FOR NOW BECAUSE WHEN  CREATING FROM OCR APP SOME DATAS ARE NOT COMING SO FOR TESTING PURPOSE.
-        // UNCOMMENT THIS SOON!!
-        // TODO
-
-        // validate request
-        // const validation = await validateJobCard(db, dto, false);
-
-        // if (!validation.isValid) {
-        //     res.status(validation.statusCode ?? 400).json({
-        //         success: false,
-        //         errors: validation.errors,
-        //         error_code: "1"
-        //     });
-        //     return;
-        // }
-
-        // insert master record
         const masterQuery = `
             WITH cte_insert AS (
                 INSERT INTO app.tbl_jobcard (
@@ -106,7 +87,6 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
 
         const jobCard = masterResult.rows[0];
 
-        // insert detail records
         if (details != null && details.length > 0) {
 
             const detailQuery = `
@@ -178,7 +158,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             details
         } = req.body;
 
-        // format request body into dto
         const dto: CreateUpdateJobCardDTO = {
             customer_name,
             customer_address,
@@ -195,7 +174,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             job_card_detail: details
         };
 
-        // validate request
         const validation = await validateJobCard(db, dto, true);
 
         if (!validation.isValid) {
@@ -207,7 +185,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // update master and insert into log
         const masterQuery = `
             WITH cte_update AS (
                 UPDATE app.tbl_jobcard
@@ -262,7 +239,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
 
         const jobCard = masterResult.rows[0];
 
-        // Soft delete old detail rows and insert new ones
         if (details && details.length > 0) {
             await db.query(
                 `
@@ -338,7 +314,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
     }
 };
 
-// get jobcard by id
 export const getJobcardById = async (req: Request, res: Response): Promise<void> => {
     try{
         const {id} = req.params;
@@ -363,12 +338,10 @@ export const getJobcardById = async (req: Request, res: Response): Promise<void>
         const mainResult = await db.query(mainDataQuery, [Number(id)]);
         const detailResult = await db.query(detailDataQuery, [Number(id)]);
 
-        // combine 2 results in one object and return
         const data = {
             jobcard: mainResult.rows[0],      // single object
             details: detailResult.rows        // array
         };
-
 
         if(mainResult.rows.length === 0){
             res.status(404).json({ success: false, message: 'Job card not found' });
@@ -382,9 +355,6 @@ export const getJobcardById = async (req: Request, res: Response): Promise<void>
     }
 };
 
-// list all jobcards
-// currenttly no filters for final internal demo
-// will add in external final demo
 export const jobCardList = async (req: Request, res: Response): Promise<void> => {
     try {
         const query = `
@@ -427,16 +397,38 @@ export const jobCardList = async (req: Request, res: Response): Promise<void> =>
     }
 };
 
-// loadddl
 export const loadddl = async (req: Request, res: Response): Promise<void> => {
     try{
         const queryText = 'SELECT part_id as id, part_name as label, rate, available_qty FROM inv.fn_get_part_available_stock() where available_qty > 0';
     
         const result = await db.query(queryText);
-        
+
         res.status(200).json({ success: true, data: result.rows|| [], error_code: "0" });
     }catch (error){
         console.error(error);
         res.status(500).json({ success: false, message: 'Error fetching LoadDDL data.', error_code: "1" });
   }
+};
+
+export const deleteJobCard = async (req: Request, res: Response): Promise<void> => {
+    const deleted_by = (req as any).user?.id;
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            `UPDATE app.tbl_jobcard SET is_deleted = TRUE, is_active = FALSE, updated_by = $2, updated_at = NOW() WHERE id = $1 AND is_deleted = FALSE RETURNING id`,
+            [Number(id), deleted_by]
+        );
+        if (result.rowCount === 0) {
+            res.status(404).json({ success: false, message: "Job card not found.", error_code: "1" });
+            return;
+        }
+        await db.query(
+            `UPDATE app.tbl_jobcard_detail SET is_deleted = TRUE, is_active = FALSE, updated_at = NOW() WHERE jobcard_id = $1 AND is_deleted = FALSE`,
+            [Number(id)]
+        );
+        res.status(200).json({ success: true, message: "Job card deleted successfully.", error_code: "0" });
+    } catch (err) {
+        console.error(err);
+        res.status(400).json({ success: false, message: "Could not delete job card.", error_code: "1" });
+    }
 };

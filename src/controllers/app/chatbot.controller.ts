@@ -62,7 +62,6 @@ async function buildBaseReply(message: string, history: ChatTurn[]): Promise<Cha
         };
     }
 
-    // Conversational intents
     if (intent.name === "greeting") {
         return {
             reply: `Hi! I'm ${ASSISTANT_NAME}, your ${PRODUCT_NAME} assistant. I can pull live numbers on job cards, parts and billing, or help you find your way around. What do you need?`,
@@ -105,7 +104,6 @@ async function buildBaseReply(message: string, history: ChatTurn[]): Promise<Cha
         };
     }
 
-    // Knowledge base (how-to / navigation)
     const kb = matchKnowledge(message);
     if (kb) {
         const actions = kb.entry.path
@@ -121,7 +119,6 @@ async function buildBaseReply(message: string, history: ChatTurn[]): Promise<Cha
         };
     }
 
-    // Fallback
     return {
         reply:
             "I'm not sure about that one yet. I'm best with live figures on job cards, parts and billing, and with how-to questions about the system. Try one of the suggestions below.",
@@ -145,7 +142,6 @@ export const chat = async (req: Request, res: Response): Promise<void> => {
 
         const base = await buildBaseReply(message, history);
 
-        // Optionally refine the wording with Claude (grounded on the same facts).
         if (llmEnabled() && base.intent !== "fallback") {
             const facts = {
                 intent: base.intent,

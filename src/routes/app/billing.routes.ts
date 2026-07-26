@@ -1,13 +1,10 @@
 import { Router } from "express";
-import { billList, createBill, getBill, getBillForPrinting, updateBill } from "../../controllers/app/billing.controller.js";
+import { billList, createBill, getBill, getBillForPrinting, updateBill, deleteBill } from "../../controllers/app/billing.controller.js";
 import authenticationMiddleware from "../../middlewares/authMiddleware.js";
 
 const router = Router();
 
-
-// authentication middleware for all billing routes
 router.use(authenticationMiddleware);
-
 
 /**
  * @swagger
@@ -338,10 +335,10 @@ router.get("/get/:id", getBill);
  */
 router.post("/update", updateBill);
 
-// route for list of bills get api endpoint
 router.get("/list", billList);
 
-// route for getting bill for printing accepts bill id in params
 router.get("/printbill/:bill_id", getBillForPrinting);
+
+router.delete("/delete/:id", deleteBill);
 
 export { router as billingRoutes };

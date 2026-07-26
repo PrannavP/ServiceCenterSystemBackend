@@ -1,5 +1,4 @@
 import ValidationResult from "../../../interfaces/common/ValidationResult.js";
-// import { CreateUpdateBillDTO } from "../../../interfaces/app/billing/billing.interface.js";
 
 export async function ValidateBill(
     db: any,
@@ -9,7 +8,6 @@ export async function ValidateBill(
 
     const errors: string[] = [];
 
-    //#region Validate Job Card
     const jobCardResult = await db.query(
         `SELECT id FROM app.tbl_jobcard WHERE id = $1 AND is_active`, [job_card_id]
     );
@@ -17,8 +15,6 @@ export async function ValidateBill(
     if (jobCardResult.rows.length === 0) {
         errors.push("Invalid job card.");
     }
-
-    //#endregion
 
     if (errors.length > 0) {
         return {

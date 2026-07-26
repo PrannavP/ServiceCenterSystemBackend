@@ -1,13 +1,9 @@
-// Data-retrieval tools for the assistant. Every number the assistant reports
-// comes from one of these functions so answers are always grounded in the DB.
 
 import { db } from "../../config/database.js";
 import type { ChatCard, ChatAction, ToolResult } from "../../interfaces/app/chatbot/chatbot.interface.js";
 
 const money = (n: number): string =>
     "Rs. " + Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-// ---- Job cards -------------------------------------------------------------
 
 export async function jobcardStats(): Promise<ToolResult> {
     const totalsQ = `
@@ -68,8 +64,6 @@ export async function jobcardStats(): Promise<ToolResult> {
         facts: { totalJobcards: Number(t.total), activeJobcards: Number(t.active), createdToday: Number(t.today) },
     };
 }
-
-// ---- Parts / inventory -----------------------------------------------------
 
 interface StockRow {
     part_id: number;
@@ -182,10 +176,7 @@ export async function searchPart(term: string): Promise<ToolResult> {
     };
 }
 
-// ---- Billing ---------------------------------------------------------------
-
 export async function billingSummary(): Promise<ToolResult> {
-    // Grand total per bill = sum(line total) + sum(tax). Aggregate across all bills.
     const revenueQ = `
         SELECT
             COUNT(DISTINCT b.id)                                   AS bill_count,

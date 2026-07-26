@@ -1,13 +1,9 @@
-// Static knowledge about the Service Center System.
-// Used both by the rule-based responder and as grounding context for the LLM.
 
 export interface KnowledgeEntry {
     id: string;
-    // Keywords that hint this entry is relevant
     keywords: string[];
     question: string;
     answer: string;
-    // Optional navigation the frontend can offer
     path?: string;
     pathLabel?: string;
 }
@@ -15,7 +11,6 @@ export interface KnowledgeEntry {
 export const PRODUCT_NAME = "ServiceCenter Suite";
 export const ASSISTANT_NAME = "Aria";
 
-// A concise system description used as the LLM system prompt grounding.
 export const SYSTEM_OVERVIEW = `
 ${PRODUCT_NAME} is a management platform for vehicle service centers / auto workshops.
 Core modules:

@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../../config/database.js";
 
-// Define available menus
 const menus = [
     {
         id: 1,
@@ -40,7 +39,6 @@ const menus = [
     }
 ];
 
-// get menu based on user type
 export const getUserBasedMenu = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
@@ -61,7 +59,6 @@ export const getUserBasedMenu = async (req: Request, res: Response): Promise<voi
 
         const userType = user_type_result.rows[0].user_type.toLowerCase();
 
-        // Filter menu according to user role, return menus list but dont return the allowed user types key.
         const menus_list = menus.filter(menu => menu.allowedRoles.includes(userType)).map(({ allowedRoles, ...menu }) => menu);
 
         res.status(200).json({

@@ -8,7 +8,6 @@ export async function validateJobCard(
 ): Promise<ValidationResult>{
     const errors: string[] = [];
 
-    // validate customer name
     if(!dto.customer_name || dto.customer_name.trim().length < 2 || dto.customer_name.trim().length > 50){
         errors.push("Customer name must be between 2 and 50 characters.");
     }

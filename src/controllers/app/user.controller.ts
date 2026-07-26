@@ -6,7 +6,6 @@ import { db } from "../../config/database.js";
 import { CreateUpdateUserDTO } from "../../interfaces/app/user/user.interface.js";
 import { validateUser } from "../../validations/app/UserValidationHelper/ValidationHelper.js";
 
-// Register user
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const dto: CreateUpdateUserDTO = {
@@ -19,8 +18,6 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
             avatar_url: req.body.avatar_url
         };
 
-
-        // validation
         const validation = await validateUser(
             db,
             dto,
@@ -37,8 +34,6 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-
-        // encrypt password
         const hashedPassword = await bcrypt.hash(dto.password,10);
 
         const currentDate = new Date();
@@ -91,7 +86,6 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
             error_code: "0"
         });
 
-
     } catch (error) {
         console.log(error);
         res.status(400).json({
@@ -102,7 +96,6 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     }
 };
 
-// login user
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const {username, password} = req.body;
@@ -164,5 +157,35 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
             message: "Login failed.",
             error_code: "1"
         });
+    }
+};
+
+export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const userId = (req as any).user?.id;
+
+        if (!userId) {
+            res.status(401).json({ success: false, message: "Not authenticated.", error_code: "1" });
+            return;
+        }
+
+        const queryText = `
+            SELECT id, username, email, full_name, phone, user_type, avatar_url, is_active, created_at
+            FROM app.tbl_user
+            WHERE id = $1
+            LIMIT 1;
+        `;
+
+        const result = await db.query(queryText, [userId]);
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ success: false, message: "User not found.", error_code: "1" });
+            return;
+        }
+
+        res.status(200).json({ success: true, data: result.rows[0], error_code: "0" });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ success: false, message: "Could not fetch profile.", error_code: "1" });
     }
 };

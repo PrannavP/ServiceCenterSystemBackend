@@ -1,10 +1,8 @@
 import { Router } from 'express';
 import authenticationMiddleware from "../../middlewares/authMiddleware.js";
-import { registerUser, loginUser } from '../../controllers/app/user.controller.js';
+import { registerUser, loginUser, getCurrentUser } from '../../controllers/app/user.controller.js';
 
 const router = Router();
-
-// route => /api/user/
 
 /**
  * @swagger
@@ -71,5 +69,22 @@ router.post("/register", registerUser);
  *
  */
 router.post("/login", loginUser);
+
+/**
+ * @swagger
+ * /api/user/me:
+ *   get:
+ *     summary: Get the currently authenticated user's profile
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user profile
+ *       401:
+ *         description: Not authenticated
+ */
+router.get("/me", authenticationMiddleware, getCurrentUser);
 
 export { router as userRoutes };

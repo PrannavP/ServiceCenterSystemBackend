@@ -1,10 +1,3 @@
-// Optional LLM enhancement layer.
-//
-// When ANTHROPIC_API_KEY is set the assistant phrases its answer with Claude,
-// GROUNDED strictly on the facts we retrieved from the database (so it can
-// never invent numbers). With no key, this returns null and the caller falls
-// back to the deterministic template responder — the assistant stays fully
-// functional either way.
 
 import type { ChatTurn } from "../../interfaces/app/chatbot/chatbot.interface.js";
 import { ASSISTANT_NAME, SYSTEM_OVERVIEW } from "./knowledgeBase.js";
@@ -19,7 +12,6 @@ export function llmEnabled(): boolean {
 interface EnhanceParams {
     message: string;
     history: ChatTurn[];
-    // A correct, DB-grounded draft answer the model should refine (not contradict).
     groundedDraft: string;
     facts: Record<string, unknown>;
 }
@@ -49,7 +41,6 @@ export async function enhanceReply(params: EnhanceParams): Promise<string | null
         `Correct draft answer to refine: ${params.groundedDraft}`,
     ].join("\n");
 
-    // Keep a little conversational context.
     const historyMsgs = params.history.slice(-4).map((t) => ({
         role: t.role,
         content: t.content,

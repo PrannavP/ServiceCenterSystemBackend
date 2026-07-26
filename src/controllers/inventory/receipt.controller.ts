@@ -3,7 +3,6 @@ import { db } from '../../config/database.js';
 import { validateReceipt } from '../../validations/inventory/ReceiptValidationHelper/ValidationHelper.js';
 import { CreateUpdateReceiptDTO } from '../../interfaces/inventory/receipt/receipt.interface.js';
 
-// create
 export const createReceipt = async (req: Request, res: Response): Promise<void> => {
     const created_by = (req as any).user?.id;
     
@@ -19,7 +18,6 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
 
         const validation = await validateReceipt(db, dto, false);
 
-        // if validation has invalid then throw response error and return
         if (!validation.isValid) {
             res.status(validation.statusCode ?? 400).json({
                 success: false,
@@ -61,7 +59,6 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
             FROM cte_insert;
         `;
 
-        // execute queries and store
         const masterResult = await db.query(insertMasterTableQuery, [
             current_datetime, dto.remarks?.trim(), dto.number?.trim(), created_by
         ]);
@@ -70,7 +67,6 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
         const receiptId = recepit.id;
         const receiptUid = recepit.uid;
 
-        // using json recordset for bulk insertion in receipt details
         const insertDetailQuery = `
             WITH cte_insert AS (
                 INSERT INTO inv.tbl_receipt_detail (
@@ -128,7 +124,6 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
     }
 }
 
-// get receipt by id
 export const getReceiptById = async (req: Request, res: Response): Promise<void> => {
     try{
         const {receipt_id} = req.params;
@@ -151,12 +146,10 @@ export const getReceiptById = async (req: Request, res: Response): Promise<void>
         const mainResult = await db.query(mainDataQuery, [Number(receipt_id)]);
         const detailResult = await db.query(detailDataQuery, [Number(receipt_id)]);
 
-        // combine 2 results in one object and return
         const data = {
             receipt: mainResult.rows[0],      // single object
             details: detailResult.rows        // array
         };
-
 
         if(mainResult.rows.length === 0){
             res.status(404).json({ success: false, message: 'Receipt not found' });
@@ -195,7 +188,6 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // Update master table
         const updateMasterQuery = `
             UPDATE inv.tbl_receipt
             SET
@@ -227,7 +219,6 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
 
         const receipt = masterResult.rows[0];
 
-        // Soft delete existing detail rows
         await db.query(
             `
             UPDATE inv.tbl_receipt_detail
@@ -242,7 +233,6 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
             [receipt.id, updated_by]
         );
 
-        // Insert new detail rows
         const insertDetailQuery = `
             INSERT INTO inv.tbl_receipt_detail (
                 receipt_id,
@@ -304,7 +294,6 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
     }
 };
 
-// list page
 export const receiptList = async (req: Request, res: Response): Promise<void> => {
     try {
         const query = `
@@ -343,10 +332,9 @@ export const receiptList = async (req: Request, res: Response): Promise<void> =>
     }
 };
 
-// loadddl
 export const loadddl = async (req: Request, res: Response): Promise<void> => {
     try{
-        const queryText = 'SELECT id as id, name as label, part_number FROM inv.tbl_part where is_active';
+        const queryText = 'SELECT id as id, name as label, part_number, total_quantity FROM inv.tbl_part where is_active';
     
         const result = await db.query(queryText);
         
@@ -355,4 +343,26 @@ export const loadddl = async (req: Request, res: Response): Promise<void> => {
         console.error(error);
         res.status(500).json({ success: false, message: 'Error fetching LoadDDL data.', error_code: "1" });
   }
+};
+export const deleteReceipt = async (req: Request, res: Response): Promise<void> => {
+    const deleted_by = (req as any).user?.id;
+    try {
+        const { receipt_id } = req.params;
+        const result = await db.query(
+            `UPDATE inv.tbl_receipt SET is_deleted = TRUE, is_active = FALSE, updated_by = $2, updated_at = NOW() WHERE id = $1 AND is_deleted = FALSE RETURNING id`,
+            [Number(receipt_id), deleted_by]
+        );
+        if (result.rowCount === 0) {
+            res.status(404).json({ success: false, message: "Receipt not found.", error_code: "1" });
+            return;
+        }
+        await db.query(
+            `UPDATE inv.tbl_receipt_detail SET is_deleted = TRUE, is_active = FALSE, updated_at = NOW() WHERE receipt_id = $1 AND is_deleted = FALSE`,
+            [Number(receipt_id)]
+        );
+        res.status(200).json({ success: true, message: "Receipt deleted successfully.", error_code: "0" });
+    } catch (err) {
+        console.error(err);
+        res.status(400).json({ success: false, message: "Could not delete receipt.", error_code: "1" });
+    }
 };

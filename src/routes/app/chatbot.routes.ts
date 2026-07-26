@@ -1,12 +1,7 @@
 import { Router } from "express";
 import { chat, chatHealth } from "../../controllers/app/chatbot.controller.js";
-// import authenticationMiddleware from "../../middlewares/authMiddleware.js";
 
 const router = Router();
-
-// Auth is left optional to match the rest of the app's demo setup.
-// To lock the assistant down, uncomment the next line.
-// router.use(authenticationMiddleware);
 
 /**
  * @swagger
