@@ -9,8 +9,6 @@ export async function validatePart(
 
     const errors: string[] = [];
 
-    //#region Field Validations
-
     if (!dto.name || dto.name.trim().length < 2 || dto.name.trim().length > 100) {
         errors.push("Name must be between 2 and 100 characters.");
     }
@@ -23,8 +21,6 @@ export async function validatePart(
         errors.push("Part number must be between 2 and 50 characters.");
     }
 
-    //#endregion
-
     if (errors.length > 0) {
         return {
             isValid: false,
@@ -32,8 +28,6 @@ export async function validatePart(
             errors
         };
     }
-
-    //#region Duplicate Name Validation
 
     const duplicateNameQuery = isForUpdate
         ? `
@@ -67,10 +61,6 @@ export async function validatePart(
         errors.push("An active part already exists with this name.");
     }
 
-    //#endregion
-
-    //#region Duplicate Part Number Validation
-
     const duplicatePartNumberQuery = isForUpdate
         ? `
             SELECT COUNT(*) AS count
@@ -102,8 +92,6 @@ export async function validatePart(
     if (duplicatePartNumberCount > 0) {
         errors.push("An active part already exists with this part number.");
     }
-
-    //#endregion
 
     if (errors.length > 0) {
         return {

@@ -34,7 +34,6 @@ export async function validateUser(
         errors.push("Password must be between 2 and 100 characters.");
     }
 
-    // duplicate checks
     const duplicateUsernameQuery = isForUpdate
         ? `
             SELECT COUNT(*) AS count

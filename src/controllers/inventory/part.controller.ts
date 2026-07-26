@@ -4,24 +4,20 @@ import type { PartRow } from '../../interfaces/inventory/parts/PartRow.js';
 import { validatePart } from '../../validations/inventory/PartValidationHelper/ValidationHelper.js';
 import { CreateUpdatePartDTO } from '../../interfaces/inventory/parts/part.interface.js';
 
-// Create
 export const createPart = async (req: Request, res: Response): Promise<void> => {
     const created_by = (req as any).user?.id;
     
     try{
-        const { name, part_number, is_active } = req.body;
+        const { name, part_number, is_active, image_url, total_quantity } = req.body;
 
-        // format the request body data into proper interface data
         const dto: CreateUpdatePartDTO = {
             name: req.body.name,
             part_number: req.body.part_number,
             is_active: req.body.is_active
         };
 
-        // store the validation returned by the function
         const validation = await validatePart(db, dto, false);
 
-        // if validation has invalid then throw response error and return
         if (!validation.isValid) {
             res.status(validation.statusCode ?? 400).json({
                 success: false,
@@ -33,17 +29,18 @@ export const createPart = async (req: Request, res: Response): Promise<void> => 
         }
 
         const queryText = `
-            with cte_insert as(
-                INSERT INTO inv.tbl_part (name, part_number, is_active, created_by, created_at)
-                VALUES
-                ($1, $2, $3, $4, NOW())
+            WITH cte_insert AS (
+                INSERT INTO inv.tbl_part (name, part_number, is_active, image_url, total_quantity, created_by, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, NOW())
                 RETURNING *
+            ),
+            cte_log AS (
+                INSERT INTO inv.tbl_part_log SELECT * FROM cte_insert
             )
-            INSERT INTO inv.tbl_part_log
             SELECT * FROM cte_insert;
         `;
 
-        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, created_by]);
+        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, image_url ?? null, Number(total_quantity) || 0, created_by]);
 
         res.status(201).json({ success: true, data: result.rows[0], error_code: "0", message: "Part created successfully" });
     }catch(err){
@@ -51,7 +48,6 @@ export const createPart = async (req: Request, res: Response): Promise<void> => 
     }
 };
 
-// READ SINGLE: Fetch one row by ID
 export const getPartById = async (req: Request, res: Response): Promise<void> => {
     try{
         const { id } = req.params;
@@ -71,14 +67,13 @@ export const getPartById = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-// UPDATE: Modify user columns dynamically
 export const updatePart = async (req: Request, res: Response): Promise<void> => {
     const updated_by = (req as any).user?.id;
 
     try{
         const { id } = req.params;
         
-        const { name, part_number, is_active } = req.body;
+        const { name, part_number, is_active, image_url, total_quantity } = req.body;
 
         const dto: CreateUpdatePartDTO = {
             id: Number(req.params.id),
@@ -87,23 +82,21 @@ export const updatePart = async (req: Request, res: Response): Promise<void> => 
             is_active: req.body.is_active
         };
 
-        // call the validation helper function for validating
         const validation = await validatePart(db, dto, true);
 
-        // if not valid then response error and return early
         if (!validation.isValid) {
             res.status(validation.statusCode ?? 400).json({
                 success: false,
                 errors: validation.errors,
-                error_code: "1" // 0 means success and 1 means error
+                error_code: "1"
             });
 
             return;
         }
-        
-        const queryText = 'UPDATE inv.tbl_part SET uid = uuid_generate_v4(), name = $1, part_number = $2, is_active = $3, updated_by = $5, updated_at = NOW() WHERE id = $4 RETURNING *';
-    
-        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, Number(id), updated_by]);
+
+        const queryText = 'UPDATE inv.tbl_part SET uid = uuid_generate_v4(), name = $1, part_number = $2, is_active = $3, image_url = COALESCE($6, image_url), total_quantity = $7, updated_by = $5, updated_at = NOW() WHERE id = $4 RETURNING *';
+
+        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, Number(id), updated_by, image_url ?? null, Number(total_quantity) || 0]);
     
         if (result.rows.length === 0){
             res.status(404).json({ success: false, message: 'User not found to update', error_code: "1" });
@@ -118,7 +111,6 @@ export const updatePart = async (req: Request, res: Response): Promise<void> => 
     }
 };
 
-// List page
 export const listPart = async (req: Request, res: Response): Promise<void> => {
     try {
         const query = `
@@ -126,6 +118,7 @@ export const listPart = async (req: Request, res: Response): Promise<void> => {
                 id,
                 name,
                 part_number,
+                total_quantity,
                 is_active,
                 created_by,
                 created_at,
@@ -154,5 +147,33 @@ export const listPart = async (req: Request, res: Response): Promise<void> => {
             message: "Error while fetching data.",
             error_code: "1"
         });
+    }
+};
+
+export const uploadPartImage = async (req: Request, res: Response): Promise<void> => {
+    const file = (req as any).file;
+    if (!file) {
+        res.status(400).json({ success: false, message: "No image provided.", error_code: "1" });
+        return;
+    }
+    res.status(201).json({ success: true, data: { url: `/uploads/parts/${file.filename}` }, error_code: "0" });
+};
+
+export const deletePart = async (req: Request, res: Response): Promise<void> => {
+    const deleted_by = (req as any).user?.id;
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            `UPDATE inv.tbl_part SET is_deleted = TRUE, is_active = FALSE, updated_by = $2, updated_at = NOW() WHERE id = $1 AND is_deleted = FALSE RETURNING id`,
+            [Number(id), deleted_by]
+        );
+        if (result.rowCount === 0) {
+            res.status(404).json({ success: false, message: "Part not found.", error_code: "1" });
+            return;
+        }
+        res.status(200).json({ success: true, message: "Part deleted successfully.", error_code: "0" });
+    } catch (err) {
+        console.error(err);
+        res.status(400).json({ success: false, message: "Could not delete part.", error_code: "1" });
     }
 };

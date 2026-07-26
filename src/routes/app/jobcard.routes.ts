@@ -4,15 +4,13 @@ import {
     updateJobCard,
     getJobcardById,
     jobCardList,
-    loadddl
+    loadddl,
+    deleteJobCard
 } from "../../controllers/app/jobcard.controller.js";
 
 import authenticationMiddleware from "../../middlewares/authMiddleware.js";
 
 const router = Router();
-
-// Authentication middleware for all job card routes
-// router.use(authenticationMiddleware);
 
 /**
  * @swagger
@@ -182,5 +180,7 @@ router.get("/get/:id", authenticationMiddleware, getJobcardById);
 router.get("/list", authenticationMiddleware, jobCardList);
 
 router.get("/loadddl", authenticationMiddleware, loadddl);
+
+router.delete("/delete/:id", authenticationMiddleware, deleteJobCard);
 
 export { router as jobcardRoutes };

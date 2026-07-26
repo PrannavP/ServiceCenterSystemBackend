@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import { verifyJWTToken } from "../helpers/authTokenHelper.js";
 
 const authenticationMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    // Get token from header
     const token = req.header("x-auth-token");
 
     if (!token) {
