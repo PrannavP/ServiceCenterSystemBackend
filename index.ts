@@ -11,6 +11,7 @@ import { receiptRoute } from './src/routes/inventory/receipt.routes.js';
 import { userRoutes } from './src/routes/app/user.routes.js';
 import { billingRoutes } from './src/routes/app/billing.routes.js';
 import { menuRoutes } from './src/routes/app/menu.routes.js';
+import { chatbotRoutes } from './src/routes/app/chatbot.routes.js';
 
 dotenv.config();
 
@@ -19,7 +20,15 @@ const PORT = process.env.PORT || 6969;
 
 // cors
 const corsOptions = {
-    origin: 'http://localhost:5173',       // exact frontend origin
+    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        const allowedOrigins = ['http://localhost:5173', 'http://10.10.1.135:5173'];
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(null, true); // Allow all origins for now (mobile app support)
+        }
+    },
     credentials: true,                     // allow cookies/credentials
     methods: ['GET','POST','PUT','DELETE','OPTIONS'],
     allowedHeaders: ['Content-Type','Authorization','X-Requested-With', 'x-auth-token'],
@@ -49,6 +58,7 @@ app.use("/api/receipt", receiptRoute);
 app.use("/api/user", userRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/menu", menuRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 // Base health check route
 app.get('/', (req: Request, res: Response) => {
