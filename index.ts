@@ -18,10 +18,10 @@ dotenv.config();
 
 const app: Application = express();
 const PORT = process.env.PORT || 6969;
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",").map(origin => origin.trim()) : [];
 
 const corsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-        const allowedOrigins = ['http://localhost:5173', 'http://10.10.1.135:5173'];
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
