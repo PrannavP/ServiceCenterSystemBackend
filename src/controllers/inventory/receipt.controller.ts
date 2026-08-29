@@ -7,13 +7,13 @@ export const createReceipt = async (req: Request, res: Response): Promise<void> 
     const created_by = (req as any).user?.id;
     
     try{
-        const { remarks, number, is_active, details } = req.body
+        const { remarks, number, is_active, detail } = req.body
 
         const dto: CreateUpdateReceiptDTO = {
             remarks: remarks,
             number: number,
             is_active: is_active,
-            detail: details
+            detail: detail
         };
 
         const validation = await validateReceipt(db, dto, false);
@@ -334,7 +334,7 @@ export const receiptList = async (req: Request, res: Response): Promise<void> =>
 
 export const loadddl = async (req: Request, res: Response): Promise<void> => {
     try{
-        const queryText = 'SELECT id as id, name as label, part_number, total_quantity FROM inv.tbl_part where is_active';
+        const queryText = 'SELECT id as id, name as label, part_number FROM inv.tbl_part where is_active';
     
         const result = await db.query(queryText);
         
