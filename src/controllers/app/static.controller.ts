@@ -4,7 +4,7 @@ import { db } from "../../config/database.js";
 export const listVehicleTypes = async (_req: Request, res: Response): Promise<void> => {
     try {
         const result = await db.query(
-            `SELECT id, name FROM static.tbl_vehicle_type WHERE is_active = true ORDER BY name`
+            `SELECT id, name FROM tbl_vehicle_type WHERE is_active = true ORDER BY name`
         );
         res.status(200).json({ success: true, data: result.rows, error_code: "0" });
     } catch (err) {
@@ -22,7 +22,7 @@ export const createVehicleType = async (req: Request, res: Response): Promise<vo
         }
 
         const result = await db.query(
-            `INSERT INTO static.tbl_vehicle_type (name) VALUES ($1) RETURNING id, name`,
+            `INSERT INTO tbl_vehicle_type (name) VALUES ($1) RETURNING id, name`,
             [name]
         );
         res.status(201).json({ success: true, data: result.rows[0], error_code: "0", message: "Vehicle type added." });
@@ -37,11 +37,11 @@ export const listVehicles = async (req: Request, res: Response): Promise<void> =
         const typeId = req.query.vehicle_type_id ? Number(req.query.vehicle_type_id) : null;
         const result = typeId
             ? await db.query(
-                  `SELECT id, name, vehicle_type_id FROM static.tbl_vehicle WHERE is_active = true AND vehicle_type_id = $1 ORDER BY name`,
+                  `SELECT id, name, vehicle_type_id FROM tbl_vehicle WHERE is_active = true AND vehicle_type_id = $1 ORDER BY name`,
                   [typeId]
               )
             : await db.query(
-                  `SELECT id, name, vehicle_type_id FROM static.tbl_vehicle WHERE is_active = true ORDER BY name`
+                  `SELECT id, name, vehicle_type_id FROM tbl_vehicle WHERE is_active = true ORDER BY name`
               );
         res.status(200).json({ success: true, data: result.rows, error_code: "0" });
     } catch (err) {
@@ -60,7 +60,7 @@ export const createVehicle = async (req: Request, res: Response): Promise<void> 
         }
 
         const result = await db.query(
-            `INSERT INTO static.tbl_vehicle (name, vehicle_type_id) VALUES ($1, $2) RETURNING id, name, vehicle_type_id`,
+            `INSERT INTO tbl_vehicle (name, vehicle_type_id) VALUES ($1, $2) RETURNING id, name, vehicle_type_id`,
             [name, vehicleTypeId]
         );
         res.status(201).json({ success: true, data: result.rows[0], error_code: "0", message: "Vehicle added." });

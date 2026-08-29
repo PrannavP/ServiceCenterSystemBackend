@@ -26,21 +26,52 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
             details
         } = req.body;
 
-        const dto: CreateUpdateJobCardDTO = {
-            customer_name,
-            customer_address,
-            contact_number,
-            static_vehicle_type_id,
-            static_vehicle_id,
-            vehicle_registration_number,
-            odometer_reading,
-            fuel_quantity,
-            chasis_number,
-            problems: JSON.stringify(problems),
-            remarks,
-            is_active: true,
-            job_card_detail: details
-        };
+        // ── Stock validation ──────────────────────────────────────────────
+        // For create, the view already reflects the full "used" quantity
+        // across all active job cards, so we can query it directly.
+        if (details && details.length > 0) {
+            const partIds = details.map((d: any) => d.part_id);
+
+            const stockResult = await db.query<{ part_id: number; part_name: string; available_qty: number }>(
+                `SELECT part_id, part_name, available_qty
+                 FROM inv.vw_part_current_stock
+                 WHERE part_id = ANY($1::int[])`,
+                [partIds]
+            );
+
+            const stockMap = new Map(
+                stockResult.rows.map((r) => [r.part_id, r])
+            );
+
+            const stockErrors: string[] = [];
+
+            for (const detail of details) {
+                const stock = stockMap.get(detail.part_id);
+
+                if (!stock) {
+                    stockErrors.push(`Part ID ${detail.part_id} not found.`);
+                    continue;
+                }
+
+                if (detail.quantity > stock.available_qty) {
+                    stockErrors.push(
+                        `"${stock.part_name}" has only ${stock.available_qty} unit(s) available, ` +
+                        `but ${detail.quantity} was requested.`
+                    );
+                }
+            }
+
+            if (stockErrors.length > 0) {
+                res.status(400).json({
+                    success: false,
+                    errors: stockErrors,
+                    error_code: "1",
+                    message: "Insufficient stock for one or more parts."
+                });
+                return;
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         const masterQuery = `
             WITH cte_insert AS (
@@ -121,10 +152,20 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
                 SELECT * FROM cte_insert;
             `;
 
-            await db.query(detailQuery, [ jobCard.id, jobCard.uid, JSON.stringify(details), created_by]);
+            await db.query(detailQuery, [
+                jobCard.id,
+                jobCard.uid,
+                JSON.stringify(details),
+                created_by
+            ]);
         }
 
-        res.status(201).json({success: true, data: jobCard, error_code: "0", message: "Created job card successfully"});
+        res.status(201).json({
+            success: true,
+            data: jobCard,
+            error_code: "0",
+            message: "Created job card successfully"
+        });
 
     } catch (err) {
         console.error(err);
@@ -185,6 +226,76 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
+        // ── Stock validation ──────────────────────────────────────────────
+        // The view counts ALL active job card detail rows as "used".
+        // Since we soft-delete the existing rows for this job card and
+        // re-insert, we must add back the quantities already committed by
+        // THIS job card before comparing against the requested quantities.
+        if (details && details.length > 0) {
+            const partIds = details.map((d: any) => d.part_id);
+
+            // Current stock from the view (includes this job card's committed qty)
+            const stockResult = await db.query<{ part_id: number; part_name: string; available_qty: number }>(
+                `SELECT part_id, part_name, available_qty
+                 FROM inv.vw_part_current_stock
+                 WHERE part_id = ANY($1::int[])`,
+                [partIds]
+            );
+
+            // Quantities currently committed by THIS job card (about to be freed)
+            const committedResult = await db.query<{ part_id: number; committed_qty: number }>(
+                `SELECT part_id, SUM(quantity) AS committed_qty
+                 FROM app.tbl_jobcard_detail
+                 WHERE jobcard_id = $1
+                   AND is_active = TRUE
+                 GROUP BY part_id`,
+                [id]
+            );
+
+            const stockMap = new Map(
+                stockResult.rows.map((r) => [r.part_id, r])
+            );
+
+            // Map of qty that will be freed when existing rows are soft-deleted
+            const committedMap = new Map(
+                committedResult.rows.map((r) => [r.part_id, Number(r.committed_qty)])
+            );
+
+            const stockErrors: string[] = [];
+
+            for (const detail of details) {
+                const stock = stockMap.get(detail.part_id);
+
+                if (!stock) {
+                    stockErrors.push(`Part ID ${detail.part_id} not found.`);
+                    continue;
+                }
+
+                // Effective available = view qty + what this job card currently holds
+                // (because those rows are about to be soft-deleted before re-insert)
+                const freedQty = committedMap.get(detail.part_id) ?? 0;
+                const effectiveAvailable = stock.available_qty + freedQty;
+
+                if (detail.quantity > effectiveAvailable) {
+                    stockErrors.push(
+                        `"${stock.part_name}" has only ${effectiveAvailable} unit(s) available, ` +
+                        `but ${detail.quantity} was requested.`
+                    );
+                }
+            }
+
+            if (stockErrors.length > 0) {
+                res.status(400).json({
+                    success: false,
+                    errors: stockErrors,
+                    error_code: "1",
+                    message: "Insufficient stock for one or more parts."
+                });
+                return;
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         const masterQuery = `
             WITH cte_update AS (
                 UPDATE app.tbl_jobcard
@@ -240,20 +351,20 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
         const jobCard = masterResult.rows[0];
 
         if (details && details.length > 0) {
+            // Soft-delete existing detail rows for this job card
             await db.query(
-                `
-                UPDATE app.tbl_jobcard_detail
-                SET
-                    is_active = FALSE,
-                    is_deleted = TRUE,
-                    updated_at = NOW(),
-                    updated_by = 1
-                WHERE jobcard_id = $1
-                  AND is_active = TRUE;
-                `,
-                [jobCard.id]
+                `UPDATE app.tbl_jobcard_detail
+                 SET
+                     is_active  = FALSE,
+                     is_deleted = TRUE,
+                     updated_at = NOW(),
+                     updated_by = $2
+                 WHERE jobcard_id = $1
+                   AND is_active = TRUE`,
+                [jobCard.id, updated_by]
             );
 
+            // Insert the new detail rows (and log them)
             const detailQuery = `
                 WITH cte_insert AS (
                     INSERT INTO app.tbl_jobcard_detail (
@@ -398,16 +509,34 @@ export const jobCardList = async (req: Request, res: Response): Promise<void> =>
 };
 
 export const loadddl = async (req: Request, res: Response): Promise<void> => {
-    try{
-        const queryText = 'SELECT part_id as id, part_name as label, rate, available_qty FROM inv.fn_get_part_available_stock() where available_qty > 0';
-    
+    try {
+        const queryText = `
+            SELECT
+                part_id AS id,
+                part_name AS label,
+                rate,
+                available_qty
+            FROM inv.vw_part_current_stock
+            -- WHERE available_qty > 0
+            ORDER BY part_name
+        `;
+
         const result = await db.query(queryText);
 
-        res.status(200).json({ success: true, data: result.rows|| [], error_code: "0" });
-    }catch (error){
+        res.status(200).json({
+            success: true,
+            data: result.rows || [],
+            error_code: "0"
+        });
+    } catch (error) {
         console.error(error);
-        res.status(500).json({ success: false, message: 'Error fetching LoadDDL data.', error_code: "1" });
-  }
+
+        res.status(500).json({
+            success: false,
+            message: "Error fetching LoadDDL data.",
+            error_code: "1"
+        });
+    }
 };
 
 export const deleteJobCard = async (req: Request, res: Response): Promise<void> => {

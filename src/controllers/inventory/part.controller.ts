@@ -8,7 +8,7 @@ export const createPart = async (req: Request, res: Response): Promise<void> => 
     const created_by = (req as any).user?.id;
     
     try{
-        const { name, part_number, is_active, image_url, total_quantity } = req.body;
+        const { name, part_number, is_active } = req.body;
 
         const dto: CreateUpdatePartDTO = {
             name: req.body.name,
@@ -30,8 +30,8 @@ export const createPart = async (req: Request, res: Response): Promise<void> => 
 
         const queryText = `
             WITH cte_insert AS (
-                INSERT INTO inv.tbl_part (name, part_number, is_active, image_url, total_quantity, created_by, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                INSERT INTO inv.tbl_part (name, part_number, is_active, created_by, created_at)
+                VALUES ($1, $2, $3, $4, NOW())
                 RETURNING *
             ),
             cte_log AS (
@@ -40,10 +40,11 @@ export const createPart = async (req: Request, res: Response): Promise<void> => 
             SELECT * FROM cte_insert;
         `;
 
-        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, image_url ?? null, Number(total_quantity) || 0, created_by]);
+        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, created_by]);
 
         res.status(201).json({ success: true, data: result.rows[0], error_code: "0", message: "Part created successfully" });
     }catch(err){
+        console.error(err)
         res.status(400).json({ success: false, message: "Could not create part.", error_code: "1" });
     }
 };
@@ -73,7 +74,7 @@ export const updatePart = async (req: Request, res: Response): Promise<void> => 
     try{
         const { id } = req.params;
         
-        const { name, part_number, is_active, image_url, total_quantity } = req.body;
+        const { name, part_number, is_active } = req.body;
 
         const dto: CreateUpdatePartDTO = {
             id: Number(req.params.id),
@@ -94,9 +95,9 @@ export const updatePart = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        const queryText = 'UPDATE inv.tbl_part SET uid = uuid_generate_v4(), name = $1, part_number = $2, is_active = $3, image_url = COALESCE($6, image_url), total_quantity = $7, updated_by = $5, updated_at = NOW() WHERE id = $4 RETURNING *';
+        const queryText = 'UPDATE inv.tbl_part SET uid = uuid_generate_v4(), name = $1, part_number = $2, is_active = $3, updated_by = $4, updated_at = NOW() WHERE id = $5 RETURNING *';
 
-        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, Number(id), updated_by, image_url ?? null, Number(total_quantity) || 0]);
+        const result = await db.query<PartRow>(queryText, [name, part_number, is_active, updated_by, Number(id)]);
     
         if (result.rows.length === 0){
             res.status(404).json({ success: false, message: 'User not found to update', error_code: "1" });
@@ -118,7 +119,6 @@ export const listPart = async (req: Request, res: Response): Promise<void> => {
                 id,
                 name,
                 part_number,
-                total_quantity,
                 is_active,
                 created_by,
                 created_at,
