@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../../config/database.js';
 import { validateJobCard } from '../../validations/app/JobCardValidationHelper/ValidationHelper.js';
-import { CreateUpdateJobCardDTO } from '../../interfaces/app/job/jobcard.interface.js';
+import { CreateUpdateJobCardDTO, JobCardSettlementDTO } from '../../interfaces/app/job/jobcard.interface.js';
 
 export const createJobCard = async (req: Request, res: Response): Promise<void> => {
     let created_by = 0;
@@ -432,7 +432,7 @@ export const getJobcardById = async (req: Request, res: Response): Promise<void>
         const mainDataQuery = `
             select id as jobcard_id,
                 customer_name, customer_address, contact_number, static_vehicle_id, static_vehicle_type_id, vehicle_registration_number, odometer_reading,
-                fuel_quantity, chasis_number, problems, remarks, is_active
+                fuel_quantity, chasis_number, problems, remarks, is_active, is_settled
             from app.tbl_jobcard where id = $1 and is_deleted = false
         `;
 
@@ -478,6 +478,7 @@ export const jobCardList = async (req: Request, res: Response): Promise<void> =>
                 static_vehicle_id,
                 vehicle_registration_number,
                 is_active,
+                is_settled,
                 created_by,
                 created_at,
                 updated_by,
@@ -559,5 +560,145 @@ export const deleteJobCard = async (req: Request, res: Response): Promise<void> 
     } catch (err) {
         console.error(err);
         res.status(400).json({ success: false, message: "Could not delete job card.", error_code: "1" });
+    }
+};
+
+// get the job cards amount for settlement
+export const getJobCardSettlementDetail = async (req: Request, res: Response): Promise<void> => {
+    try{
+        const {id} = req.params;
+
+        const query = "select sum(total) as jobcard_total_amount from app.tbl_jobcard_detail where jobcard_id = $1";
+
+        const summaryQuery = `
+            select 
+                jc.id as jobcard_number, 
+                jc.customer_name,
+                jc.vehicle_registration_number
+            from app.tbl_jobcard jc
+            where jc.is_active and jc.id = $1
+        `;
+
+        const result = await db.query(query, [Number(id)]);
+
+        const summary_result = await db.query(summaryQuery, [Number(id)]);
+
+        // final response data
+        let final_response = [
+            result.rows[0],
+            summary_result.rows[0]
+        ];
+
+        res.status(200).json({
+            success: true,
+            data: final_response || [],
+            error_code: "0"
+        });
+    }catch(err){
+        console.error("Error fetching total settlement amout of job card.");
+        res.status(500).json({
+            success: false,
+            message: "Error fetching settlement detail data.",
+            error_code: "1"
+        });
+    }
+};
+
+// settle the jobcard
+export const settleJobCard = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {
+            from_app,
+            jobcard_id,
+            payment_method,
+            card_number,
+            card_expiry_date,
+            name_on_card,
+            settled_amount
+        }: JobCardSettlementDTO = req.body;
+
+        // validations
+        // prevent re settling the job card
+        const reSettleCheckQuery = await db.query(
+            `
+                select 1 from app.tbl_settlement where job_card_id = $1 and is_active
+            `, [Number(jobcard_id)]
+        );
+
+        if (reSettleCheckQuery.rowCount && reSettleCheckQuery.rowCount > 0) {
+            res.status(409).json({
+                success: false,
+                error_code: "1",
+                message: "Job card has already been settled."
+            });
+            return;
+        };
+
+        const result = await db.transaction(async (client) => {
+
+            // Insert into settlement table
+            const settlement = await client.query(
+                `
+                WITH CTE_INSERT AS (
+                    INSERT INTO app.tbl_settlement (
+                        job_card_id,
+                        payment_method,
+                        card_number,
+                        card_expiry_date,
+                        name_on_card,
+                        settled_amount
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    RETURNING *
+                )
+
+                INSERT INTO app.tbl_settlement_log
+                SELECT * FROM CTE_INSERT
+                RETURNING *;
+                `,
+                [
+                    jobcard_id,
+                    payment_method,
+                    card_number,
+                    card_expiry_date,
+                    name_on_card,
+                    settled_amount
+                ]
+            );
+
+            // Update job card as settled
+            await client.query(
+                `
+                UPDATE app.tbl_jobcard
+                SET
+                    uid = uuid_generate_v4(),
+                    is_settled = TRUE,
+                    updated_at = NOW()
+                WHERE id = $1
+                  AND is_active = TRUE;
+                `,
+                [Number(jobcard_id)]
+            );
+
+            // Return data from transaction
+            return settlement.rows[0];
+        });
+
+        // Transaction has successfully committed here
+        res.status(200).json({
+            success: true,
+            data: result,
+            error_code: "0",
+            message: "Job card settled successfully."
+        });
+
+    } catch (err) {
+        console.error("Error settling the job card amount:", err);
+
+        res.status(400).json({
+            success: false,
+            message: "Could not settle job card.",
+            error_code: "1"
+        });
     }
 };

@@ -22,3 +22,13 @@ export interface JobCardDetailDTO{
     rate: number;
     total: number;
 }
+
+export interface JobCardSettlementDTO {
+    from_app: Boolean,
+    jobcard_id: Number,
+    payment_method: String,
+    card_number?: String,
+    card_expiry_date?: Date,
+    name_on_card?: String,
+    settled_amount: number
+};

@@ -7,9 +7,9 @@ const { Pool } = pg;
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    // ssl: {
+    //     rejectUnauthorized: false
+    // }
 });
 
 export const db = {
@@ -18,5 +18,27 @@ export const db = {
         params?: any[]
     ): Promise<pg.QueryResult<T>> => {
         return pool.query<T>(text, params);
+    },
+
+    // transaction method for trsancational query execution for rollbacks, commits
+    transaction: async <T>(
+        callback: (client: pg.PoolClient) => Promise<T>
+    ): Promise<T> => {
+        const client = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            const result = await callback(client);
+
+            await client.query('COMMIT');
+
+            return result;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 };

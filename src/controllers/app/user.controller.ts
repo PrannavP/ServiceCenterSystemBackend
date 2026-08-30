@@ -6,6 +6,8 @@ import { db } from "../../config/database.js";
 import { CreateUpdateUserDTO } from "../../interfaces/app/user/user.interface.js";
 import { validateUser } from "../../validations/app/UserValidationHelper/ValidationHelper.js";
 
+import { generateJWTToken } from "../../helpers/authTokenHelper.js";
+
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const dto: CreateUpdateUserDTO = {
@@ -140,7 +142,8 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
             return;
         };
 
-        const token = jwt.sign({id: user.id}, process.env.JWT_SECRET_KEY as string, {expiresIn: "7d"});
+        // generate the token
+        const token = generateJWTToken(user.id);
 
         res.status(200).json({
             success: true,

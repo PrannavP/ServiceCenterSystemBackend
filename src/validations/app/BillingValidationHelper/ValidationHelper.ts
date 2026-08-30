@@ -8,6 +8,25 @@ export async function ValidateBill(
 
     const errors: string[] = [];
 
+    // check if the job card already has been generated / billed.
+    const already_billed_query = await db.query(
+        `select 1 from app.tbl_bill where jobcard_id = $1 and is_active`, [Number(job_card_id)]
+    );
+
+    if (already_billed_query.rowCount && already_billed_query.rowCount > 0) {
+        errors.push("Bill of this job card already has been generated.");
+    };
+
+    // check before generating if the jobcard has been settled.
+    const already_settled_query = await db.query(
+        'select 1 from app.tbl_settlement where job_card_id = $1 and is_active',
+        [Number(job_card_id)]
+    );
+
+    if (already_settled_query.rowCount && already_settled_query.rowCount == 0) {
+        errors.push("Bill of this job card has not been settled.");
+    };
+
     const jobCardResult = await db.query(
         `SELECT id FROM app.tbl_jobcard WHERE id = $1 AND is_active`, [job_card_id]
     );
