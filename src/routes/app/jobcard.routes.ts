@@ -5,7 +5,9 @@ import {
     getJobcardById,
     jobCardList,
     loadddl,
-    deleteJobCard
+    deleteJobCard,
+    getJobCardSettlementDetail,
+    settleJobCard
 } from "../../controllers/app/jobcard.controller.js";
 
 import authenticationMiddleware from "../../middlewares/authMiddleware.js";
@@ -182,5 +184,9 @@ router.get("/list", authenticationMiddleware, jobCardList);
 router.get("/loadddl", authenticationMiddleware, loadddl);
 
 router.delete("/delete/:id", authenticationMiddleware, deleteJobCard);
+
+router.get("/settlementdetail/:id", authenticationMiddleware, getJobCardSettlementDetail);
+
+router.post("/settle", authenticationMiddleware, settleJobCard);
 
 export { router as jobcardRoutes };

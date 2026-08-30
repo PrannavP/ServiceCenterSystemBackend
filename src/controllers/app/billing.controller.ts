@@ -19,7 +19,8 @@ export const createBill = async (req: Request, res: Response): Promise<void> => 
 
             res.status(validation.statusCode ?? 400).json({
                 success: false,
-                errors: validation.errors,
+                errors: validation?.errors?.[0],
+                message: validation?.errors?.[0], // the errors can be multiple so display first error.
                 error_code: "1"
             });
 
