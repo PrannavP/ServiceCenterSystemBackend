@@ -26,9 +26,8 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
             details
         } = req.body;
 
-        // ── Stock validation ──────────────────────────────────────────────
-        // For create, the view already reflects the full "used" quantity
-        // across all active job cards, so we can query it directly.
+        
+        
         if (details && details.length > 0) {
             const partIds = details.map((d: any) => d.part_id);
 
@@ -71,7 +70,6 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
                 return;
             }
         }
-        // ─────────────────────────────────────────────────────────────────
 
         const masterQuery = `
             WITH cte_insert AS (
@@ -226,15 +224,12 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // ── Stock validation ──────────────────────────────────────────────
-        // The view counts ALL active job card detail rows as "used".
-        // Since we soft-delete the existing rows for this job card and
-        // re-insert, we must add back the quantities already committed by
-        // THIS job card before comparing against the requested quantities.
+        
+
+        
         if (details && details.length > 0) {
             const partIds = details.map((d: any) => d.part_id);
 
-            // Current stock from the view (includes this job card's committed qty)
             const stockResult = await db.query<{ part_id: number; part_name: string; available_qty: number }>(
                 `SELECT part_id, part_name, available_qty
                  FROM inv.vw_part_current_stock
@@ -242,7 +237,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
                 [partIds]
             );
 
-            // Quantities currently committed by THIS job card (about to be freed)
             const committedResult = await db.query<{ part_id: number; committed_qty: number }>(
                 `SELECT part_id, SUM(quantity) AS committed_qty
                  FROM app.tbl_jobcard_detail
@@ -256,7 +250,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
                 stockResult.rows.map((r) => [r.part_id, r])
             );
 
-            // Map of qty that will be freed when existing rows are soft-deleted
             const committedMap = new Map(
                 committedResult.rows.map((r) => [r.part_id, Number(r.committed_qty)])
             );
@@ -271,8 +264,7 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
                     continue;
                 }
 
-                // Effective available = view qty + what this job card currently holds
-                // (because those rows are about to be soft-deleted before re-insert)
+                
                 const freedQty = committedMap.get(detail.part_id) ?? 0;
                 const effectiveAvailable = stock.available_qty + freedQty;
 
@@ -294,7 +286,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
                 return;
             }
         }
-        // ─────────────────────────────────────────────────────────────────
 
         const masterQuery = `
             WITH cte_update AS (
@@ -351,7 +342,7 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
         const jobCard = masterResult.rows[0];
 
         if (details && details.length > 0) {
-            // Soft-delete existing detail rows for this job card
+            
             await db.query(
                 `UPDATE app.tbl_jobcard_detail
                  SET
@@ -364,7 +355,6 @@ export const updateJobCard = async (req: Request, res: Response): Promise<void> 
                 [jobCard.id, updated_by]
             );
 
-            // Insert the new detail rows (and log them)
             const detailQuery = `
                 WITH cte_insert AS (
                     INSERT INTO app.tbl_jobcard_detail (
@@ -450,8 +440,8 @@ export const getJobcardById = async (req: Request, res: Response): Promise<void>
         const detailResult = await db.query(detailDataQuery, [Number(id)]);
 
         const data = {
-            jobcard: mainResult.rows[0],      // single object
-            details: detailResult.rows        // array
+            jobcard: mainResult.rows[0],      
+            details: detailResult.rows        
         };
 
         if(mainResult.rows.length === 0){
@@ -563,7 +553,6 @@ export const deleteJobCard = async (req: Request, res: Response): Promise<void> 
     }
 };
 
-// get the job cards amount for settlement
 export const getJobCardSettlementDetail = async (req: Request, res: Response): Promise<void> => {
     try{
         const {id} = req.params;
@@ -583,7 +572,6 @@ export const getJobCardSettlementDetail = async (req: Request, res: Response): P
 
         const summary_result = await db.query(summaryQuery, [Number(id)]);
 
-        // final response data
         let final_response = [
             result.rows[0],
             summary_result.rows[0]
@@ -604,7 +592,6 @@ export const getJobCardSettlementDetail = async (req: Request, res: Response): P
     }
 };
 
-// settle the jobcard
 export const settleJobCard = async (req: Request, res: Response): Promise<void> => {
     try {
         const {
@@ -617,8 +604,7 @@ export const settleJobCard = async (req: Request, res: Response): Promise<void> 
             settled_amount
         }: JobCardSettlementDTO = req.body;
 
-        // validations
-        // prevent re settling the job card
+        
         const reSettleCheckQuery = await db.query(
             `
                 select 1 from app.tbl_settlement where job_card_id = $1 and is_active
@@ -636,7 +622,6 @@ export const settleJobCard = async (req: Request, res: Response): Promise<void> 
 
         const result = await db.transaction(async (client) => {
 
-            // Insert into settlement table
             const settlement = await client.query(
                 `
                 WITH CTE_INSERT AS (
@@ -666,7 +651,6 @@ export const settleJobCard = async (req: Request, res: Response): Promise<void> 
                 ]
             );
 
-            // Update job card as settled
             await client.query(
                 `
                 UPDATE app.tbl_jobcard
@@ -680,11 +664,9 @@ export const settleJobCard = async (req: Request, res: Response): Promise<void> 
                 [Number(jobcard_id)]
             );
 
-            // Return data from transaction
             return settlement.rows[0];
         });
 
-        // Transaction has successfully committed here
         res.status(200).json({
             success: true,
             data: result,

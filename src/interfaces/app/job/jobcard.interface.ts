@@ -13,7 +13,7 @@ export interface CreateUpdateJobCardDTO{
     remarks?: string;
     is_active: boolean;
 
-    job_card_detail?: Array<JobCardDetailDTO> // can be null when first time creating a job card from scanning image, later user can update and parrts.
+    job_card_detail?: Array<JobCardDetailDTO> 
 }
 
 export interface JobCardDetailDTO{

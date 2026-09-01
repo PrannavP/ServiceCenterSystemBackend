@@ -147,8 +147,8 @@ export const getReceiptById = async (req: Request, res: Response): Promise<void>
         const detailResult = await db.query(detailDataQuery, [Number(receipt_id)]);
 
         const data = {
-            receipt: mainResult.rows[0],      // single object
-            details: detailResult.rows        // array
+            receipt: mainResult.rows[0],      
+            details: detailResult.rows        
         };
 
         if(mainResult.rows.length === 0){

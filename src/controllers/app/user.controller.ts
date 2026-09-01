@@ -142,7 +142,6 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
             return;
         };
 
-        // generate the token
         const token = generateJWTToken(user.id);
 
         res.status(200).json({

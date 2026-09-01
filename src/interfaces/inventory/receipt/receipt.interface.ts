@@ -4,7 +4,7 @@ export interface CreateUpdateReceiptDTO {
     number?:string;
     is_active: boolean;
 
-    detail: Array<ReceiptDetail>; // we can use another interface here
+    detail: Array<ReceiptDetail>; 
 };
 
 interface ReceiptDetail{

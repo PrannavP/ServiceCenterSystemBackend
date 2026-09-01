@@ -8,7 +8,6 @@ export async function ValidateBill(
 
     const errors: string[] = [];
 
-    // check if the job card already has been generated / billed.
     const already_billed_query = await db.query(
         `select 1 from app.tbl_bill where jobcard_id = $1 and is_active`, [Number(job_card_id)]
     );
@@ -17,7 +16,6 @@ export async function ValidateBill(
         errors.push("Bill of this job card already has been generated.");
     };
 
-    // check before generating if the jobcard has been settled.
     const already_settled_query = await db.query(
         'select 1 from app.tbl_settlement where job_card_id = $1 and is_active',
         [Number(job_card_id)]

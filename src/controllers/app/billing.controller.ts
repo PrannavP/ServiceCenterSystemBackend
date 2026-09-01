@@ -2,8 +2,6 @@ import { Request, Response } from "express";
 import { db } from "../../config/database.js";
 import { ValidateBill } from "../../validations/app/BillingValidationHelper/ValidationHelper.js";
 
-    
-
                 
 
 export const createBill = async (req: Request, res: Response): Promise<void> => {
@@ -20,7 +18,7 @@ export const createBill = async (req: Request, res: Response): Promise<void> => 
             res.status(validation.statusCode ?? 400).json({
                 success: false,
                 errors: validation?.errors?.[0],
-                message: validation?.errors?.[0], // the errors can be multiple so display first error.
+                message: validation?.errors?.[0], 
                 error_code: "1"
             });
 
@@ -308,8 +306,6 @@ export const getBill = async (req: Request, res: Response): Promise<void> => {
 
     }
 };
-
-    
 
 export const updateBill = async (req: Request, res: Response): Promise<void> => {
     const updated_by = (req as any).user?.id;

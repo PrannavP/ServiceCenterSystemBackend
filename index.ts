@@ -25,10 +25,10 @@ const corsOptions = {
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            callback(null, true); // Allow all origins for now (mobile app support)
+            callback(null, true); 
         }
     },
-    credentials: true,                     // allow cookies/credentials
+    credentials: true,                     
     methods: ['GET','POST','PUT','DELETE','OPTIONS'],
     allowedHeaders: ['Content-Type','Authorization','X-Requested-With', 'x-auth-token'],
     optionsSuccessStatus: 204
