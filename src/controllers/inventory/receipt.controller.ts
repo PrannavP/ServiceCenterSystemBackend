@@ -296,6 +296,18 @@ export const updateReceipt = async (req: Request, res: Response): Promise<void> 
 
 export const receiptList = async (req: Request, res: Response): Promise<void> => {
     try {
+        const user = (req as any).user;
+        let tenantFilter = "";
+        const queryParams: any[] = [];
+        
+        if (user.user_type !== 'admin') {
+            tenantFilter = " AND service_center_id = $1 ";
+            queryParams.push(user.id);
+        } else if (req.query.service_center_id) {
+            tenantFilter = " AND service_center_id = $1 ";
+            queryParams.push(Number(req.query.service_center_id));
+        }
+
         const query = `
             SELECT
                 id,
@@ -307,11 +319,11 @@ export const receiptList = async (req: Request, res: Response): Promise<void> =>
                 updated_by,
                 updated_at
             FROM inv.tbl_receipt
-            WHERE is_deleted = FALSE
+            WHERE is_deleted = FALSE ${tenantFilter}
             ORDER BY created_at DESC;
         `;
 
-        const result = await db.query(query);
+        const result = await db.query(query, queryParams);
 
         res.status(200).json({
             success: true,

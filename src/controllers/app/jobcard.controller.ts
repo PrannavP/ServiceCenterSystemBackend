@@ -4,10 +4,13 @@ import { validateJobCard } from '../../validations/app/JobCardValidationHelper/V
 import { CreateUpdateJobCardDTO, JobCardSettlementDTO } from '../../interfaces/app/job/jobcard.interface.js';
 
 export const createJobCard = async (req: Request, res: Response): Promise<void> => {
-    let created_by = 0;
+    const authUser = (req as any).user;
+    let created_by = authUser.id;
+    let service_center_id = authUser.user_type === 'admin' && req.body.service_center_id ? req.body.service_center_id : authUser.id;
 
     if(req.body.fromApp === true){
         created_by = req.body.created_by;
+        service_center_id = req.body.created_by;
     }
 
     try {
@@ -85,10 +88,11 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
                     chasis_number,
                     problems,
                     remarks,
-                    created_by
+                    created_by,
+                    service_center_id
                 )
                 VALUES (
-                    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+                    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
                 )
                 RETURNING *
             ),
@@ -111,7 +115,8 @@ export const createJobCard = async (req: Request, res: Response): Promise<void> 
             chasis_number,
             JSON.stringify(problems),
             remarks,
-            created_by
+            created_by,
+            service_center_id
         ]);
 
         const jobCard = masterResult.rows[0];
@@ -458,6 +463,18 @@ export const getJobcardById = async (req: Request, res: Response): Promise<void>
 
 export const jobCardList = async (req: Request, res: Response): Promise<void> => {
     try {
+        const user = (req as any).user;
+        let tenantFilter = "";
+        const queryParams: any[] = [];
+        
+        if (user.user_type !== 'admin') {
+            tenantFilter = " AND service_center_id = $1 ";
+            queryParams.push(user.id);
+        } else if (req.query.service_center_id) {
+            tenantFilter = " AND service_center_id = $1 ";
+            queryParams.push(Number(req.query.service_center_id));
+        }
+
         const query = `
             SELECT
                 id AS jobcard_number,
@@ -474,11 +491,11 @@ export const jobCardList = async (req: Request, res: Response): Promise<void> =>
                 updated_by,
                 updated_at
             FROM app.tbl_jobcard
-            WHERE is_deleted = FALSE
+            WHERE is_deleted = FALSE ${tenantFilter}
             ORDER BY created_at DESC;
         `;
 
-        const result = await db.query(query);
+        const result = await db.query(query, queryParams);
 
         res.status(200).json({
             success: true,

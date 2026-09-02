@@ -7,35 +7,35 @@ const menus = [
         name: "Dashboard",
         path: "/dashboard",
         icon: "dashboard",
-        allowedRoles: ["admin", "front_office"]
+        allowedRoles: ["admin", "service_center", "front_office"]
     },
     {
         id: 2,
         name: "Billing",
         path: "/app/billing",
         icon: "bill",
-        allowedRoles: ["admin", "front_office"]
+        allowedRoles: ["admin", "service_center", "front_office"]
     },
     {
         id: 3,
         name: "Part",
         path: "/inv/part",
         icon: "parts",
-        allowedRoles: ["admin"]
+        allowedRoles: ["admin", "service_center"]
     },
     {
         id: 4,
         name: "Receipt",
         path: "/inv/receipt",
         icon: "receipt",
-        allowedRoles: ["admin"]
+        allowedRoles: ["admin", "service_center"]
     },
     {
         id: 5,
         name: "Job Card",
         path: "/app/jobcard",
         icon: "card",
-        allowedRoles: ["admin", "front_office"]
+        allowedRoles: ["admin", "service_center", "front_office"]
     }
 ];
 

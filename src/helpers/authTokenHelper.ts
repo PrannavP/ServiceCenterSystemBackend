@@ -11,9 +11,9 @@ if (!JWT_SECRET) {
 
 const JWT_EXPIRATION_TIME = 2 * 24 * 60 * 60;
 
-export const generateJWTToken = (userUUID: any) => {
+export const generateJWTToken = (userUUID: any, userType?: string) => {
     return jwt.sign(
-        { id: userUUID },
+        { id: userUUID, user_type: userType || 'user' },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRATION_TIME }
     );
